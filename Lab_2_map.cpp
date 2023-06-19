@@ -126,6 +126,26 @@ public:                              // объявление открытых членов класса
             m_contents.insert(make_pair(new_name, entity));
         }
     }
+    void move_f(const string& name, Entity* entity) {
+        auto it = m_contents.find(name);
+        if (it != m_contents.end()) {
+            m_contents.erase(it);  // Удаляем сущность из старого местоположения
+            m_size -= entity->size();
+            modified = time(NULL);
+
+            //// Получаем новый путь к родительской папке
+            //string new_parent_path = entity->getParentPath();
+
+            //// Устанавливаем новый путь к родительской папке
+            //entity->setParentPath(getParentPath());
+
+            //// Добавляем сущность в новое местоположение
+            //m_contents[name] = entity;
+            //m_size += entity->size();
+        }
+
+    }
+
 
     const map<string, Entity*>& contents() const {
         return m_contents;
@@ -238,74 +258,102 @@ public:
         }
     }
 
-    void rename(const string& path, const string& name) {
-        auto entity = get(path); // Получаем сущность по пути
-        if (entity) { // Если сущность существует, то изменяем ее имя
-            entity->setName(name);
-        }
-    }
-
-
-    
-    void move(Entity* entity, const string& newPath) {
-        auto parts = splitPath(newPath);
-        auto new_name = parts.back();
-        parts.pop_back();
-        string new_parent_path = "";
-        for (const auto& part : parts) {
-            new_parent_path += "/" + part;
-        }
-        auto parent = dynamic_cast<Folder*>(get(new_parent_path));
-        if (!parent) {
-            throw invalid_argument("Invalid path: " + new_parent_path);
-        }
-        auto old_parent_path = entity->getParentPath();
-        if (!old_parent_path.empty()) {
-            auto old_parent = dynamic_cast<Folder*>(get(old_parent_path));
-            if (old_parent) {
-                old_parent->remove_f(entity); // удаляем сущность из старой папки
+    void rename(const string& path, const string& old_name, const string& new_name) {
+        //auto entity = get(path); // Получаем сущность по пути
+        //if (!entity) {
+        //    cout << "Invalid current path: " << path << endl;
+        //    return;
+        //}
+        //bool isFolder = entity->isFolder(); // Проверяем, является ли сущность папкой
+        //if (entity) { // Если сущность существует, то изменяем ее имя
+        //    entity->setName(name);
+        //}
+        //string entityName = entity->getName(); // Получаем имя сущности
+        //size_t entitySize = entity->size(); // Получаем размер сущности
+        //remove(path); // Удаляем сущность по текущему пути
+        //if (isFolder) {
+        //    createFolder(path, entityName); // Создаем новую папку с новым именем в родительской папке нового пути
+        //}
+        //else {
+        //    createFile(path, entityName, entitySize); // Создаем новый файл с новым именем и размером в родительской папке нового пути
+        //}
+        auto parts = splitPath(path);
+        Entity* current = m_root;
+        for (size_t i = 0; i < parts.size() - 1; i++) {// Проходим по всем частям пути, кроме последней,
+            //и получаем последнюю текущую сущность
+            if (!parts[i].empty() && current) {
+                current = dynamic_cast<Folder*>(current)->get_f(parts[i]);
             }
         }
-        entity->setParentPath(new_parent_path); // устанавливаем новый путь
-        parent->add_f(entity); // добавляем сущность в новую папку
-        entity->setName(new_name); // изменяем имя сущности
+        if (current) {// Если последняя текущая сущность существует, то находим сущность, 
+            //которую нужно удалить, и удаляем ее
+            //Entity* toRename = dynamic_cast<Folder*>(current)->get_f(parts.back());
+            dynamic_cast<Folder*>(current)->rename_f(old_name, new_name);
+            //if (toRename) {
+            //    //dynamic_cast<Folder*>(current)->remove_f(toRename);
+            //    
+            //}
+        }
     }
 
 
-    //void move(const string& currentPath, const string& newPath) {
-    //    try {
-    //        Entity* entity = m_root->get_f(currentPath);
-    //        if (!entity) {
-    //            throw invalid_argument("Invalid entity path");
-    //        }
 
-    //        Entity* newParent = m_root->get_f(newPath);
-    //        if (!newParent || !newParent->isFolder()) {
-    //            throw invalid_argument("Invalid destination path");
-    //        }
 
-    //        Entity* currentParent = m_root->get_f(entity->getParentPath());
-    //        if (!currentParent || !currentParent->isFolder()) {
-    //            throw invalid_argument("Entity is not contained in a folder");
-    //        }
 
-    //        if (newParent == currentParent) {
-    //            return;
-    //        }
 
-    //        dynamic_cast<Folder*>(currentParent)->remove_f(entity);
+    void move(const string& newPath, const string& currentPath) {
+        // Получаем сущность, которую нужно переместить
+        Entity* entity = get(currentPath);
+        if (!entity) {
+            cout << "Invalid current path: " << currentPath << endl;
+            return;
+        }
 
-    //        dynamic_cast<Folder*>(newParent)->add_f(entity);
-    //        entity->setParentPath(newPath);
-    //        entity->modified = time(NULL);
-    //    }
-    //    catch (const std::invalid_argument& e) {
-    //        // обработка исключения, например:
-    //        std::cerr << "Error: " << e.what() << std::endl;
-    //        return;
-    //    }
+        // Получаем родительскую папку нового пути
+        size_t pos = newPath.find_last_of('/');
+        if (pos == string::npos) {
+            cout << "Invalid new path: " << newPath << endl;
+            return;
+        }
+        string newParentPath = newPath.substr(0, pos);
 
-    //}   
+        // Получаем новое имя для сущности
+        string newName = newPath.substr(pos + 1);
+
+        // Проверяем, что новая родительская папка существует
+        Entity* newParent = get(newParentPath);
+        if (!newParent || !newParent->isFolder()) {
+            cout << "Invalid new parent path: " << newParentPath << endl;
+            return;
+        }
+
+        Folder* newParentFolder = dynamic_cast<Folder*>(newParent);
+
+        // Проверяем, что новое имя не занято другой сущностью в родительской папке
+        if (newParentFolder->get_f(newName)) {
+            cout << "An entity with the same name already exists in the new parent folder" << endl;
+            return;
+        }
+
+        // Проверяем, что перемещение внутри текущей папки не происходит
+        if (currentPath.substr(0, currentPath.find_last_of('/')) == newParentPath) {
+            cout << "Moving within the same folder is not allowed" << endl;
+            return;
+        }
+
+        // Перемещаем сущность в новое место
+        Folder* currentParent = dynamic_cast<Folder*>(get(currentPath.substr(0, currentPath.find_last_of('/'))));
+        currentParent->move_f(entity->getName(), entity);
+
+        // Обновляем родительскую папку у перемещенной сущности
+        entity->setParentPath(newParentPath);
+
+        // Добавляем сущность в новую родительскую папку
+        newParentFolder->add_f(entity);
+    }
+
+
+  
     Entity* findEntity(string path) {
         vector<string> pathElements = splitPath(path);
         Entity* currentEntity = m_root;
@@ -405,7 +453,7 @@ int main() {
     cout << "Name of folder1: " << folder1->getName() << endl;
 
     cout << "----------------------- Changing size -----------------------\n" << endl;
-
+    fs.printFolderStructure("/");
     cout << "subfolder size(file1): " << subfolder->size() << endl;
     fs.modify("/folder1/subfolder/file1", 2048);
     cout << "subfolder size(file1): " << subfolder->size() << endl;
@@ -413,18 +461,24 @@ int main() {
     cout << "----------------------- Renaming Folder/File -----------------------\n" << endl;
 
     fs.printFolderStructure("/");
-    fs.rename("/folder1/subfolder/file1", "file1.1");
-    Entity* newfile = fs.get("/folder1/subfolder/file1");   //почему-то НЕ правильно работает
-    cout << "Changed name: " << newfile->getName() << endl;
+    fs.rename("/folder1/subfolder/file1", "file1", "file1.1");
+    //Entity* newfile = fs.get("/folder1/subfolder/file1");   //почему-то НЕ правильно работает
+    //cout << "Changed name: " << newfile->getName() << endl;
     fs.printFolderStructure("/");
 
     cout << "----------------------- Moving Folder/File -----------------------\n" << endl;
 
-    fs.createFile("/folder1/subfolder", "file1_new", 2048);
+    fs.createFile("/folder1/subfolder", "file1_new", 1024);
     Entity* file1_new = fs.get("/folder1/subfolder", "file1_new");
     cout << "Getting file/folder by name " << file1_new << endl;
-  //  // Move file1 from /folder1/subfolder to /folder2
-  //  fs.move("/folder1/subfolder/file1_new", "/folder2");
+
+
+    fs.printFolderStructure("/");
+
+
+    // Move file1 from /folder1/subfolder to /folder2
+    //Entity* file2 = fs.get("/folder2", "file2");
+    fs.move( "/folder1/subfolder/", "/folder2/file2");
   //  // Get file1 entity at the new location
   //  Entity* movedFile = fs.get("/folder2", "file1_new");
   /////   Check that the entity was moved correctly
@@ -434,12 +488,18 @@ int main() {
   //  else {
   //      cout << "Failed to move file1" << endl;
   //  }
-    
-    // Move the subfolder entity from folder1 to folder2
-    //fs.move(file1_new, "/folder2");
+  //  
+  //  // Move the subfolder entity from folder1 to folder2
+  // // fs.move(file1_new, "/folder2");
 
-    //// Get the new location of subfolder after the move
-    //Entity* newSubfolderLocation = fs.get("/folder2/subfolder");
+  //  // Get the new location of subfolder after the move
+  //  Entity* newSubfolderLocation = fs.get("/folder2/subfolder");
+
+
+
+
+
+
     fs.printFolderStructure("/");
 
     cout << "----------------------- Time when was Created/Modified -----------------------\n" << endl;
@@ -457,13 +517,13 @@ int main() {
     cout << "Folder 1 size: " << folder1->size() << endl;
     cout << "Subfolder size: " << subfolder->size() << endl;
     cout << "File 1 size: " << file1->size() << endl;
-    cout << "File 2 size: " << file2->size() << endl;
+//    cout << "File 2 size: " << file2->size() << endl;
     cout << "Folder 1 count: " << folder1->count() << endl;
     cout << "Subfolder count: " << subfolder->count() << endl;
     fs.printFolderStructure("/");
 
-    fs.remove("/folder2/file2");
-    Entity* deletedFile = fs.get("/folder2/file2");
+    fs.remove("/folder1/subfolder/file2");
+    Entity* deletedFile = fs.get("/folder1/subfolder/file2");
     if (!deletedFile) {
         cout << "File 2 deleted successfully!" << endl;
     }
