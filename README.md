@@ -1,5 +1,6 @@
 # Lab6_OOP
 The following features should be implemented:
+
  Get a file/folder by full path (fs.get(name)).
 
  Getting a file/folder by name in a given folder (fs.get(name, folder)).
